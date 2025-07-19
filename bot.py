@@ -13,8 +13,15 @@ from telegram.ext import (
     ConversationHandler, ContextTypes, filters
 )
 
+from user2_layout import (
+    generate_html_with_answers as generate_html_with_answers_user2,
+    generate_html_only_questions as generate_html_only_questions_user2,
+    generate_answer_key_table as generate_answer_key_table_user2
+)
+
+
 # === CONFIG ===
-BOT_TOKEN = "7929665507:AAHSlgdPvcbRgAerdtYdsKnSL9pmLBHE4ok"  # Replace with your token
+BOT_TOKEN = "7862360118:AAEMX7Q0xaTM_6nE8XZyv5TiKZaAOXx2hY8"  # Replace with your token
 OWNER_ID = 6558540272
 AUTHORIZED_USER_IDS = {OWNER_ID}
 PLAN = "PRO PLAN⚡"
@@ -162,6 +169,7 @@ import re
 import logging
 import requests
 from html import unescape
+from datetime import datetime, timezone, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -169,6 +177,10 @@ def escape_markdown(text):
     if not text:
         return ""
     return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', str(text))
+
+def unix_to_ist(unix_timestamp):
+    ist = timezone(timedelta(hours=5, minutes=30))
+    return datetime.fromtimestamp(unix_timestamp, ist).strftime("%d %B %Y, %I:%M %p")
 
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update.effective_user.id):
@@ -193,11 +205,19 @@ async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         title = quiz.get("title", "N/A")
         display_name = quiz.get("display_name", "N/A")
         raw_description = quiz.get("description", "")
+        quiz_open = quiz.get("quiz_open")
+        quiz_close = quiz.get("quiz_close")
+
+        # Convert timestamps to IST
+        test_open = unix_to_ist(int(quiz_open)) if quiz_open else "N/A"
+        test_close = unix_to_ist(int(quiz_close)) if quiz_close else "N/A"
 
         # Start message with test info
         msg = f"*📘 CODE Info*\n\n"
         msg += f"*📝 Title:* {escape_markdown(title)}\n"
-        msg += f"*📛 Display Name:* {escape_markdown(display_name)}\n\n"
+        msg += f"*📛 Display Name:* {escape_markdown(display_name)}\n"
+        msg += f"*🟢 Test Opens:* {escape_markdown(test_open)}\n"
+        msg += f"*🔴 Test Closes:* {escape_markdown(test_close)}\n\n"
 
         # Decode and extract syllabus
         decoded = unescape(raw_description or "")
@@ -218,19 +238,20 @@ async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Failed to fetch info for CODE {nid}.")
 
 
-
-
 async def extract_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update.effective_user.id):
         await send_unauthorized_message(update)
         return ConversationHandler.END
 
     await update.message.reply_text("🔢 Please send the CODE to extract:")
-    return ASK_NID
+    return ASK_NID  # <-- This tells ConversationHandler to wait for input
+
+
 
 async def handle_nid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global extracted_papers_count
     nid = update.message.text.strip()
+
     if not nid.isdigit():
         await update.message.reply_text("❌ Invalid CODE. Please Recheck.")
         return ASK_NID
@@ -243,11 +264,20 @@ async def handle_nid(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     title, desc = fetch_test_title_and_description(nid)
-    htmls = {
-        "QP_with_Answers.html": generate_html_with_answers(data, title, desc),
-        "Only_Answer_Key.html": generate_answer_key_table(data, title, desc),
-        "Only_Question_Paper.html": generate_html_only_questions(data, title, desc)
-    }
+    user_id = update.effective_user.id
+
+    if user_id == 7138086137:  # Harsh's ID
+        htmls = {
+            "QP_with_Answers.html": generate_html_with_answers_user2(data, title, desc),
+            "Only_Answer_Key.html": generate_answer_key_table_user2(data, title, desc),
+            "Only_Question_Paper.html": generate_html_only_questions_user2(data, title, desc)
+        }
+    else:
+        htmls = {
+            "QP_with_Answers.html": generate_html_with_answers(data, title, desc),
+            "Only_Answer_Key.html": generate_answer_key_table(data, title, desc),
+            "Only_Question_Paper.html": generate_html_only_questions(data, title, desc)
+        }
 
     docs = []
     for filename, html in htmls.items():
@@ -262,6 +292,7 @@ async def handle_nid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     extracted_papers_count += 1
     await update.message.reply_text("✅ All HTML files sent!")
     return ConversationHandler.END
+
 
 # === Utility Functions ===
 def fetch_locale_json_from_api(nid):
@@ -520,7 +551,7 @@ def generate_html_with_answers(data, test_title, syllabus):
     for idx, q in enumerate(data, 1):
         processed_body = process_html_content(q['body'])
         html += "<div class='question-card'>"
-        html += "<div class='question-watermark'><a href='t.me/preachify' target='_blank'>@𝐏𝐫𝐞𝐚𝐜𝐡𝐢𝐟𝐲</a></div>"
+        html += "<div class='question-watermark'><a href='https://t.me/preachify' target='_blank'>@𝐏𝐫𝐞𝐚𝐜𝐡𝐢𝐟𝐲</a></div>"
         html += f"<div class='question-title'>Question {idx}</div>"
         html += f"<div class='question-body'>{processed_body}</div>"
         html += "<div class='options'>"
@@ -744,7 +775,7 @@ def generate_html_only_questions(data, test_title, syllabus):
     for idx, q in enumerate(data, 1):
         processed_body = process_html_content(q['body'])
         html += "<div class='question-card'>"
-        html += "<div class='question-watermark'><a href='https://t.me/preachify' target='_blank'>@𝐏𝐫𝐞𝐚𝐜𝐡𝐢𝐟y</a></div>"
+        html += "<div class='question-watermark'><a href='https://t.me/preachify' target='_blank'>@𝐏𝐫𝐞𝐚𝐜𝐡𝐢𝐟𝐲</a></div>"
         html += f"<div class='question-title'>Question {idx}</div>"
         html += f"<div class='question-body'>{processed_body}</div>"
         html += "<div class='options'>"
@@ -1046,10 +1077,13 @@ def main():
     app.add_handler(CommandHandler("au", authorize_user))
     app.add_handler(CommandHandler("ru", revoke_user))
     app.add_handler(CommandHandler("send", send_command))
+
     app.add_handler(conv_handler)
 
     logger.info("Bot started...")
     app.run_polling()
+
+
 
 if __name__ == '__main__':
     main()
