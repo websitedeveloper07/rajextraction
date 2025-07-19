@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 # === CONFIG ===
-BOT_TOKEN = "7862360118:AAEMX7Q0xaTM_6nE8XZyv5TiKZaAOXx2hY8"  # Replace with your token
+BOT_TOKEN = "7929665507:AAHSlgdPvcbRgAerdtYdsKnSL9pmLBHE4ok"  # Replace with your token
 OWNER_ID = 6558540272
 AUTHORIZED_USER_IDS = {OWNER_ID}
 PLAN = "PRO PLAN⚡"
